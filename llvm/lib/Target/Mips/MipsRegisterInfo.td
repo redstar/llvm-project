@@ -272,6 +272,9 @@ let Namespace = "Mips" in {
   def P1 : MipsReg<1, "p1">;
   def P2 : MipsReg<2, "p2">;
 
+  // MXU general purpose registers
+  foreach I = 0-16 in
+  def XR#I : MipsReg<#I, "xr"#I>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -498,6 +501,12 @@ def OCTEON_MPL : RegisterClass<"Mips", [i64], 64, (add MPL0, MPL1, MPL2)>,
 def OCTEON_P : RegisterClass<"Mips", [i64], 64, (add P0, P1, P2)>,
                Unallocatable;
 
+// MXU registers
+def MXUQ: RegisterClass<"Mips", [v4i8], 32, (sequence "XR%u", 0, 15)>;
+def MXUD: RegisterClass<"Mips", [v2i16], 32, (sequence "XR%u", 0, 15)>;
+def MXUS: RegisterClass<"Mips", [i32], 32, (sequence "XR%u", 0, 15)>;
+def MXUSPlusCR: RegisterClass<"Mips", [i32], 32, (sequence "XR%u", 0, 16)>;
+
 // Register Operands.
 
 class MipsAsmRegOperand : AsmOperandClass {
@@ -604,6 +613,10 @@ def FCCRegsAsmOperand : MipsAsmRegOperand {
 
 def MSA128AsmOperand : MipsAsmRegOperand {
   let Name = "MSA128AsmReg";
+}
+
+def MXUAsmOperand : MipsAsmRegOperand {
+  let Name = "MXUAsmReg";
 }
 
 def MSACtrlAsmOperand : MipsAsmRegOperand {
@@ -755,4 +768,20 @@ def MSA128DOpnd : RegisterOperand<MSA128D> {
 
 def MSA128CROpnd : RegisterOperand<MSACtrl> {
   let ParserMatchClass = MSACtrlAsmOperand;
+}
+
+def MXUQOpnd : RegisterOperand<MXUQ> {
+  let ParserMatchClass = MXUAsmOperand;
+}
+
+def MXUDOpnd : RegisterOperand<MXUD> {
+  let ParserMatchClass = MXUAsmOperand;
+}
+
+def MXUSOpnd : RegisterOperand<MXUS> {
+  let ParserMatchClass = MXUAsmOperand;
+}
+
+def MXUSPlusCROpnd : RegisterOperand<MXUSPlusCR> {
+  let ParserMatchClass = MXUAsmOperand;
 }

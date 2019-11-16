@@ -193,6 +193,22 @@ static DecodeStatus DecodeMSACtrlRegisterClass(MCInst &Inst,
                                                uint64_t Address,
                                                const void *Decoder);
 
+static DecodeStatus DecodeMXUQRegisterClass(MCInst &Inst, unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder);
+
+static DecodeStatus DecodeMXUDRegisterClass(MCInst &Inst, unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder);
+
+static DecodeStatus DecodeMXUSRegisterClass(MCInst &Inst, unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder);
+
+static DecodeStatus DecodeMXUSPlusCRRegisterClass(MCInst &Inst, unsigned RegNo,
+                                                  uint64_t Address,
+                                                  const void *Decoder);
+
 static DecodeStatus DecodeCOP0RegisterClass(MCInst &Inst,
                                             unsigned RegNo,
                                             uint64_t Address,
@@ -429,6 +445,9 @@ static DecodeStatus DecodeSimm19Lsl2(MCInst &Inst, unsigned Insn,
                                      uint64_t Address, const void *Decoder);
 
 static DecodeStatus DecodeSimm18Lsl3(MCInst &Inst, unsigned Insn,
+                                     uint64_t Address, const void *Decoder);
+
+static DecodeStatus DecodeSimm12Lsl2(MCInst &Inst, unsigned Insn,
                                      uint64_t Address, const void *Decoder);
 
 static DecodeStatus DecodeSimm9SP(MCInst &Inst, unsigned Insn,
@@ -2183,6 +2202,50 @@ static DecodeStatus DecodeMSACtrlRegisterClass(MCInst &Inst,
   return MCDisassembler::Success;
 }
 
+static DecodeStatus DecodeMXUQRegisterClass(MCInst &Inst, unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder) {
+  if (RegNo > 15)
+    return MCDisassembler::Fail;
+
+  unsigned Reg = getReg(Decoder, Mips::MXUQRegClassID, RegNo);
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeMXUDRegisterClass(MCInst &Inst, unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder) {
+  if (RegNo > 15)
+    return MCDisassembler::Fail;
+
+  unsigned Reg = getReg(Decoder, Mips::MXUDRegClassID, RegNo);
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeMXUSRegisterClass(MCInst &Inst, unsigned RegNo,
+                                            uint64_t Address,
+                                            const void *Decoder) {
+  if (RegNo > 15)
+    return MCDisassembler::Fail;
+
+  unsigned Reg = getReg(Decoder, Mips::MXUSRegClassID, RegNo);
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeMXUSPlusCRRegisterClass(MCInst &Inst, unsigned RegNo,
+                                                  uint64_t Address,
+                                                  const void *Decoder) {
+  if (RegNo > 16)
+    return MCDisassembler::Fail;
+
+  unsigned Reg = getReg(Decoder, Mips::MXUSRegClassID, RegNo);
+  Inst.addOperand(MCOperand::createReg(Reg));
+  return MCDisassembler::Success;
+}
+
 static DecodeStatus DecodeCOP0RegisterClass(MCInst &Inst,
                                             unsigned RegNo,
                                             uint64_t Address,
@@ -2392,6 +2455,12 @@ static DecodeStatus DecodeSimm19Lsl2(MCInst &Inst, unsigned Insn,
 static DecodeStatus DecodeSimm18Lsl3(MCInst &Inst, unsigned Insn,
                                      uint64_t Address, const void *Decoder) {
   Inst.addOperand(MCOperand::createImm(SignExtend32<18>(Insn) * 8));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeSimm12Lsl2(MCInst &Inst, unsigned Insn,
+                                     uint64_t Address, const void *Decoder) {
+  Inst.addOperand(MCOperand::createImm(SignExtend32<12>(Insn) * 4));
   return MCDisassembler::Success;
 }
 

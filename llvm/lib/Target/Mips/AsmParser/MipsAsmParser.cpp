@@ -204,6 +204,8 @@ class MipsAsmParser : public MCTargetAsmParser {
                                                      SMLoc S);
   OperandMatchResultTy parseAnyRegister(OperandVector &Operands);
   OperandMatchResultTy parseImm(OperandVector &Operands);
+  OperandMatchResultTy parseOptn(OperandVector& Operands);
+  OperandMatchResultTy parseEptn(OperandVector& Operands);
   OperandMatchResultTy parseJumpTarget(OperandVector &Operands);
   OperandMatchResultTy parseInvNum(OperandVector &Operands);
   OperandMatchResultTy parseRegisterList(OperandVector &Operands);
@@ -429,6 +431,8 @@ class MipsAsmParser : public MCTargetAsmParser {
   int matchMSA128RegisterName(StringRef Name);
 
   int matchMSA128CtrlRegisterName(StringRef Name);
+
+  int matchMXURegisterName(StringRef Name);
 
   unsigned getReg(int RC, int RegNo);
 
@@ -694,6 +698,10 @@ public:
     return (getSTI().getFeatureBits()[Mips::FeatureCnMipsP]);
   }
 
+  bool hasMXU() const {
+    return (getSTI().getFeatureBits()[Mips::FeatureMXU]);
+  }
+
   bool inPicMode() {
     return IsPicEnabled;
   }
@@ -811,10 +819,12 @@ public:
     RegKind_HWRegs = 256, /// HWRegs
     RegKind_COP3 = 512,   /// COP3
     RegKind_COP0 = 1024,  /// COP0
+    RegKind_MXU = 2048,   /// MXU
     /// Potentially any (e.g. $1)
     RegKind_Numeric = RegKind_GPR | RegKind_FGR | RegKind_FCC | RegKind_MSA128 |
                       RegKind_MSACtrl | RegKind_COP2 | RegKind_ACC |
-                      RegKind_CCR | RegKind_HWRegs | RegKind_COP3 | RegKind_COP0
+                      RegKind_CCR | RegKind_HWRegs | RegKind_COP3 |
+	                  RegKind_COP0 | RegKind_MXU
   };
 
 private:
@@ -977,6 +987,15 @@ private:
   unsigned getMSACtrlReg() const {
     assert(isRegIdx() && (RegIdx.Kind & RegKind_MSACtrl) && "Invalid access!");
     unsigned ClassID = Mips::MSACtrlRegClassID;
+    return RegIdx.RegInfo->getRegClass(ClassID).getRegister(RegIdx.Index);
+  }
+
+  /// Coerce the register to MXU and return the real register for the
+  /// current target.
+  unsigned getMXUReg() const {
+    assert(isRegIdx() && (RegIdx.Kind & RegKind_MXU) && "Invalid access!");
+    // Use MXUSPlusCR class because it contains xr16.
+    unsigned ClassID = Mips::MXUSPlusCRRegClassID;
     return RegIdx.RegInfo->getRegClass(ClassID).getRegister(RegIdx.Index);
   }
 
@@ -1164,6 +1183,11 @@ public:
   void addMSACtrlAsmRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     Inst.addOperand(MCOperand::createReg(getMSACtrlReg()));
+  }
+
+  void addMXUAsmRegOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    Inst.addOperand(MCOperand::createReg(getMXUReg()));
   }
 
   void addCOP0AsmRegOperands(MCInst &Inst, unsigned N) const {
@@ -1563,6 +1587,14 @@ public:
     return CreateReg(Index, Str, RegKind_MSACtrl, RegInfo, S, E, Parser);
   }
 
+  /// Create a register that is definitely an MXU.
+  /// This is typically only used for named registers such as $xr1.
+  static std::unique_ptr<MipsOperand>
+  createMXUReg(unsigned Index, StringRef Str, const MCRegisterInfo *RegInfo,
+               SMLoc S, SMLoc E, MipsAsmParser &Parser) {
+    return CreateReg(Index, Str, RegKind_MXU, RegInfo, S, E, Parser);
+  }
+
   static std::unique_ptr<MipsOperand>
   CreateImm(const MCExpr *Val, SMLoc S, SMLoc E, MipsAsmParser &Parser) {
     auto Op = std::make_unique<MipsOperand>(k_Immediate, Parser);
@@ -1689,6 +1721,10 @@ public:
 
   bool isMSACtrlAsmReg() const {
     return isRegIdx() && RegIdx.Kind & RegKind_MSACtrl && RegIdx.Index <= 7;
+  }
+
+  bool isMXUAsmReg() const {
+    return isRegIdx() && RegIdx.Kind & RegKind_MXU && RegIdx.Index <= 16;
   }
 
   /// getStartLoc - Get the location of the first token of this operand.
@@ -6311,6 +6347,19 @@ int MipsAsmParser::matchMSA128CtrlRegisterName(StringRef Name) {
   return CC;
 }
 
+int MipsAsmParser::matchMXURegisterName(StringRef Name) {
+  if (Name.startswith("xr")) {
+    StringRef NumString = Name.substr(2);
+    unsigned IntVal;
+    if (NumString.getAsInteger(10, IntVal))
+      return -1;    // This is not an integer.
+    if (IntVal > 16) // There are only 16 MXU registers.
+      return -1;
+    return IntVal;
+  }
+  return -1;
+}
+
 bool MipsAsmParser::canUseATReg() {
   return AssemblerOptions.back()->getATRegIndex() != 0;
 }
@@ -6670,6 +6719,14 @@ MipsAsmParser::matchAnyRegisterNameWithoutDollar(OperandVector &Operands,
     return MatchOperand_Success;
   }
 
+  Index = matchMXURegisterName(Identifier);
+  if (Index != -1) {
+    Operands.push_back(MipsOperand::createMXUReg(
+        Index, Identifier, getContext().getRegisterInfo(), S,
+        getLexer().getLoc(), *this));
+    return MatchOperand_Success;
+  }
+
   return MatchOperand_NoMatch;
 }
 
@@ -6734,6 +6791,84 @@ MipsAsmParser::parseAnyRegister(OperandVector &Operands) {
     Parser.Lex(); // identifier
   }
   return ResTy;
+}
+
+OperandMatchResultTy MipsAsmParser::parseOptn(OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+  LLVM_DEBUG(dbgs() << "parseOptn\n");
+
+  auto Token = Parser.getTok();
+
+  SMLoc S = Token.getLoc();
+
+  if (Token.is(AsmToken::Identifier)) {
+    LLVM_DEBUG(dbgs() << ".. identifier\n");
+    StringRef Identifier = Token.getIdentifier();
+    int64_t OpPat = StringSwitch<int>(Identifier)
+                        .Case("ww", 0)
+                        .Case("lw", 1)
+                        .Case("hw", 2)
+                        .Case("xw", 3)
+                        .Default(-1);
+    if (OpPat != -1) {
+      Lex();
+      Operands.push_back(
+          MipsOperand::CreateImm(MCConstantExpr::create(OpPat, getContext()), S,
+                                 getLexer().getLoc(), *this));
+      return MatchOperand_Success;
+    }
+  } else if (Token.is(AsmToken::Integer)) {
+    LLVM_DEBUG(dbgs() << ".. integer\n");
+    int64_t OpPat = Token.getIntVal();
+    if (OpPat >= 0 && OpPat <= 3) {
+      Lex();
+      Operands.push_back(
+          MipsOperand::CreateImm(MCConstantExpr::create(OpPat, getContext()), S,
+                                 getLexer().getLoc(), *this));
+      return MatchOperand_Success;
+    }
+  }
+
+  return MatchOperand_NoMatch;
+}
+
+OperandMatchResultTy MipsAsmParser::parseEptn(OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+  LLVM_DEBUG(dbgs() << "parseEptn\n");
+
+  auto Token = Parser.getTok();
+
+  SMLoc S = Token.getLoc();
+
+  if (Token.is(AsmToken::Identifier)) {
+    LLVM_DEBUG(dbgs() << ".. identifier\n");
+    StringRef Identifier = Token.getIdentifier();
+    int64_t ExPat = StringSwitch<int>(Identifier)
+                        .Case("aa", 0)
+                        .Case("as", 1)
+                        .Case("sa", 2)
+                        .Case("ss", 3)
+                        .Default(-1);
+    if (ExPat != -1) {
+      Lex();
+      Operands.push_back(
+          MipsOperand::CreateImm(MCConstantExpr::create(ExPat, getContext()), S,
+                                 getLexer().getLoc(), *this));
+      return MatchOperand_Success;
+    }
+  } else if (Token.is(AsmToken::Integer)) {
+    LLVM_DEBUG(dbgs() << ".. integer\n");
+    int64_t ExPat = Token.getIntVal();
+    if (ExPat >= 0 && ExPat <= 3) {
+      Lex();
+      Operands.push_back(
+          MipsOperand::CreateImm(MCConstantExpr::create(ExPat, getContext()), S,
+                                 getLexer().getLoc(), *this));
+      return MatchOperand_Success;
+    }
+  }
+
+  return MatchOperand_NoMatch;
 }
 
 OperandMatchResultTy

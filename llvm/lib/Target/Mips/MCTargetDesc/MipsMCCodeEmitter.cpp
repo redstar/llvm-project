@@ -999,6 +999,16 @@ MipsMCCodeEmitter::getSimm18Lsl3Encoding(const MCInst &MI, unsigned OpNo,
 }
 
 unsigned
+MipsMCCodeEmitter::getSimm12Lsl2Encoding(const MCInst &MI, unsigned OpNo,
+                                         SmallVectorImpl<MCFixup> &Fixups,
+                                         const MCSubtargetInfo &STI) const {
+  assert(MI.getOperand(OpNo).isImm());
+  unsigned Res = getMachineOpValue(MI, MI.getOperand(OpNo), Fixups, STI);
+  assert((Res & 3) == 0);
+  return Res >> 2;
+}
+
+unsigned
 MipsMCCodeEmitter::getUImm3Mod8Encoding(const MCInst &MI, unsigned OpNo,
                                         SmallVectorImpl<MCFixup> &Fixups,
                                         const MCSubtargetInfo &STI) const {

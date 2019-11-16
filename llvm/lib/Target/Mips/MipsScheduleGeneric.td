@@ -1620,4 +1620,24 @@ def : InstRW<[GenericWriteAtomic],
 def : InstRW<[GenericWriteAtomic],
     (instregex "^ATOMIC_LOAD_(ADD|SUB|AND|OR|XOR|NAND|MIN|MAX|UMIN|UMAX)"
                "_I(8|16|32|64)_POSTRA$")>;
+
+// Ingenic MXU ASE - hasMXU
+// ========================
+
+def GenericMXU : ProcResource<1> { let BufferSize = 1; }
+def GenericMXUInst : SchedWriteRes<[GenericMXU]> { let Latency = 2; }
+
+def : InstRW<[GenericMXUInst], (instregex "^MUX_(S32|D16|Q8)(MAX|MIN)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_(S32|D16|Q8)SLT$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_(S32|D16|Q8)MOV(Z|N)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_(D16|Q8)(AVG|AVGR)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_Q16SAT$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_D16(ASUM|MAC|MACE|MACF|MADL|MUL|MULE|MULF)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_(D16|S32)CPS$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_S32(SFL|NOR|AND|OR|XOR)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_Q8(ABD|ADDE|ACCE|MAC|MACSU|MADL|MUL|MULSU|SAD)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_Q16(ACC|ACCM|ADD|SCOP|SAR|SARV|SLL|SLLV|SLR|SLRV)$")>;
+def : InstRW<[GenericMXUInst], (instregex "^MUX_D32(ACC|ACCM|ADD|ASUM|SAR|SARV|SLL|SLLV|SLR|SLRV)$")>;
+def : InstRW<[GenericMXUInst], (instrs MUX_Q8SLTU, MUX_S32M2I, MUX_S32I2M,
+                                       MUX_S32LDD, MUX_S32LDDR)>;
 }

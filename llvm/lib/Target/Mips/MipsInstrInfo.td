@@ -215,6 +215,8 @@ def HasCnMipsP   :    Predicate<"Subtarget->hasCnMipsP()">,
                       AssemblerPredicate<(all_of FeatureCnMipsP)>;
 def NotCnMipsP   :    Predicate<"!Subtarget->hasCnMipsP()">,
                       AssemblerPredicate<(all_of (not FeatureCnMipsP))>;
+def HasMXU       :    Predicate<"Subtarget->hasMXU()">,
+                      AssemblerPredicate<(all_of FeatureMXU)>;
 def IsSym32     :     Predicate<"Subtarget->hasSym32()">,
                       AssemblerPredicate<(all_of FeatureSym32)>;
 def IsSym64     :     Predicate<"!Subtarget->hasSym32()">,
@@ -453,6 +455,10 @@ class NOT_ASE_CNMIPSP {
 
 class ASE_MIPS64_CNMIPS {
   list<Predicate> ASEPredicate = [HasMips64, HasCnMips];
+}
+
+class ASE_MXU {
+  list<Predicate> ASEPredicate = [HasMXU];
 }
 
 class ASE_MSA {
@@ -3385,6 +3391,10 @@ include "MipsDSPInstrInfo.td"
 // MSA
 include "MipsMSAInstrFormats.td"
 include "MipsMSAInstrInfo.td"
+
+// MXU
+include "MipsMXUInstrFormats.td"
+include "MipsMXUInstrInfo.td"
 
 // EVA
 include "MipsEVAInstrFormats.td"
