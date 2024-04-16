@@ -361,14 +361,17 @@ private:
     return nullptr;
   }
 
-  std::pair<GOFFSymbol, GOFFSymbol> getSDEDSymbolsForSection(const MCSectionGOFF& GSection, const MCAsmLayout Layout);
+  std::pair<GOFFSymbol, GOFFSymbol>
+  getSDEDSymbolsForSection(const MCSectionGOFF &GSection,
+                           const MCAsmLayout Layout);
 
   // Write out all ESD Symbols that make up a section. GOFF doesn't have
   // "sections" in the way other object file formats like ELF do; instead
   // a GOFF section is defined as a triple of ESD Symbols (SD, ED, PR/LD).
   // The ED or PR symbol should own a TXT Record that contains the contents
   // of the section itself
-  void writeSectionSymbols(const MCSectionGOFF &GSection, MCAssembler &Asm, const MCAsmLayout &Layout);
+  void writeSectionSymbols(const MCSectionGOFF &GSection, MCAssembler &Asm,
+                           const MCAsmLayout &Layout);
 
   void writeText(const MCSectionGOFF *MCSec, uint32_t EsdId,
                  GOFF::TXTRecordStyle RecordStyle, MCAssembler &Asm,
@@ -865,18 +868,19 @@ void GOFFObjectWriter::writeSymbol(const GOFFSymbol &Symbol,
   OS.write(Name.data(), NameLength); // Name
 }
 
-std::pair<GOFFSymbol, GOFFSymbol> GOFFObjectWriter::getSDEDSymbolsForSection(const MCSectionGOFF& GSection, const MCAsmLayout Layout) {
-  GOFFSymbol SD = GSection.getRooted() ? RootSD : createSDSymbol(GSection.getName());
+std::pair<GOFFSymbol, GOFFSymbol>
+GOFFObjectWriter::getSDEDSymbolsForSection(const MCSectionGOFF &GSection,
+                                           const MCAsmLayout Layout) {
+  GOFFSymbol SD =
+      GSection.getRooted() ? RootSD : createSDSymbol(GSection.getName());
 
-  GOFFSymbol ED = createEDSymbol(GSection.getExternalDefinitionName(), SD.EsdId, Layout.getSectionAddressSize(&GSection),
-                                 GSection.isCode() ? GOFF::ESD_EXE_CODE : GOFF::ESD_EXE_DATA,
-                                 GSection.getBindingScope(),
-                                 GSection.getNameSpace(),
-                                 GSection.getBindingAlgorithm(),
-                                 GSection.isReadOnly(),
-                                 GSection.getTextStyle(),
-                                 GSection.getLoadBehavior()
-                                 );
+  GOFFSymbol ED = createEDSymbol(
+      GSection.getExternalDefinitionName(), SD.EsdId,
+      Layout.getSectionAddressSize(&GSection),
+      GSection.isCode() ? GOFF::ESD_EXE_CODE : GOFF::ESD_EXE_DATA,
+      GSection.getBindingScope(), GSection.getNameSpace(),
+      GSection.getBindingAlgorithm(), GSection.isReadOnly(),
+      GSection.getTextStyle(), GSection.getLoadBehavior());
   return std::make_pair(SD, ED);
 }
 
@@ -895,32 +899,32 @@ void GOFFObjectWriter::writeSectionSymbols(const MCSectionGOFF &GSection,
     LD.BindingScope = GOFF::ESD_BSC_Section;
     EntryEDEsdId = SDEDSymbols.second.EsdId;
     CodeLDEsdId = LD.EsdId;
-    GOFFSection GoffSec = GOFFSection(LD.EsdId, SDEDSymbols.second.EsdId, SDEDSymbols.first.EsdId);
+    GOFFSection GoffSec = GOFFSection(LD.EsdId, SDEDSymbols.second.EsdId,
+                                      SDEDSymbols.first.EsdId);
     writeSymbol(LD, Layout);
   } else if (!GSection.isTextOwnedByED()) {
-    auto GSym = GSection.getTextOwner();
     GOFF::ESDExecutable Executability = GOFF::ESD_EXE_DATA;
     bool IsOSLinkage = false;
-    if (GSym.has_value()) {
-      Executability = GSym.value()->getExecutable();
-      IsOSLinkage = GSym.value()->isOSLinkage();
+    if (const MCSymbolGOFF *GSym = GSection.getTextOwner()) {
+      Executability = GSym->getExecutable();
+      IsOSLinkage = GSym->isOSLinkage();
     }
     std::string ADAName = FileName + "#S";
-    GOFFSymbol PR = createPRSymbol(GSection.isStatic() ? ADAName : GSection.getTextOwnerName(),
-                                   SDEDSymbols.second.EsdId,
-                                   GOFF::ESD_NS_Parts,
-                                   Executability,
-                                   GOFFSymbol::setGOFFAlignment(GSection.getAlign()),
-                                   GOFF::ESD_BSC_Section,
-                                   Layout.getSectionAddressSize(&GSection),
-                                   GSection.getLoadBehavior(),
-                                   IsOSLinkage ? GOFF::ESD_LT_OS : GOFF::ESD_LT_XPLink);
-    ADAPREsdId = PR.EsdId; 
+    GOFFSymbol PR = createPRSymbol(
+        GSection.isStatic() ? ADAName : GSection.getTextOwnerName(),
+        SDEDSymbols.second.EsdId, GOFF::ESD_NS_Parts, Executability,
+        GOFFSymbol::setGOFFAlignment(GSection.getAlign()),
+        GOFF::ESD_BSC_Section, Layout.getSectionAddressSize(&GSection),
+        GSection.getLoadBehavior(),
+        IsOSLinkage ? GOFF::ESD_LT_OS : GOFF::ESD_LT_XPLink);
+    ADAPREsdId = PR.EsdId;
     writeSymbol(PR, Layout);
-    GOFFSection GoffSec = GOFFSection(PR.EsdId, SDEDSymbols.second.EsdId, SDEDSymbols.first.EsdId);
+    GOFFSection GoffSec = GOFFSection(PR.EsdId, SDEDSymbols.second.EsdId,
+                                      SDEDSymbols.first.EsdId);
     SectionMap.insert(std::make_pair(&GSection, GoffSec));
   } else {
-    GOFFSection GoffSec = GOFFSection(SDEDSymbols.second.EsdId, 0, SDEDSymbols.first.EsdId);
+    GOFFSection GoffSec =
+        GOFFSection(SDEDSymbols.second.EsdId, 0, SDEDSymbols.first.EsdId);
     SectionMap.insert(std::make_pair(&GSection, GoffSec));
   }
 }
@@ -1023,8 +1027,9 @@ uint64_t GOFFObjectWriter::writeObject(MCAssembler &Asm,
   writeHeader();
   writeSymbol(RootSD, Layout);
 
-  // The static and code sections must be written first because the symbols that make up the aforementioned sections
-  // are referenced by several other symbols/sections.
+  // The static and code sections must be written first because the symbols that
+  // make up the aforementioned sections are referenced by several other
+  // symbols/sections.
   writeSectionSymbols(*getStaticSection(Asm), Asm, Layout);
   writeSectionSymbols(*getCodeSection(Asm), Asm, Layout);
 

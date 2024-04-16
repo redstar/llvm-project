@@ -49,20 +49,25 @@ class MCSectionGOFF final : public MCSection {
   /// a LD or PR Symbol.
   bool TextOwnedByED = false;
 
-  /// TextOwner - Valid if owned the text record containing the body of this section
-  /// is not owned by an ED Symbol. The MCSymbol that represents the part or label that
-  /// actually owns the TXT Record.
+  /// TextOwner - Valid if owned the text record containing the body of this
+  /// section is not owned by an ED Symbol. The MCSymbol that represents the
+  /// part or label that actually owns the TXT Record.
   const MCSymbolGOFF *TextOwner = nullptr;
 
   friend class MCContext;
   MCSectionGOFF(StringRef Name, SectionKind K, MCSection *P, const MCExpr *Sub)
       : MCSection(SV_GOFF, Name, K, nullptr), Parent(P), SubsectionId(Sub) {}
-  
+
   MCSectionGOFF(StringRef Name, SectionKind K, MCSection *P, const MCExpr *Sub,
-                GOFF::ESDTextStyle TextStyle, GOFF::ESDBindingAlgorithm BindAlgorithm,
-                GOFF::ESDLoadingBehavior LoadBehavior, GOFF::ESDBindingScope BindingScope, bool IsRooted, const MCSymbolGOFF *TextOwner)
+                GOFF::ESDTextStyle TextStyle,
+                GOFF::ESDBindingAlgorithm BindAlgorithm,
+                GOFF::ESDLoadingBehavior LoadBehavior,
+                GOFF::ESDBindingScope BindingScope, bool IsRooted,
+                const MCSymbolGOFF *TextOwner)
       : MCSection(SV_GOFF, Name, K, nullptr), Parent(P), SubsectionId(Sub),
-        TextStyle(TextStyle), BindAlgorithm(BindAlgorithm), LoadBehavior(LoadBehavior), BindingScope(BindingScope), IsRooted(IsRooted), TextOwner(TextOwner) {}
+        TextStyle(TextStyle), BindAlgorithm(BindAlgorithm),
+        LoadBehavior(LoadBehavior), BindingScope(BindingScope),
+        IsRooted(IsRooted), TextOwner(TextOwner) {}
 
   MCSectionGOFF(StringRef Name, SectionKind K, MCSection *P, const MCExpr *Sub,
                 GOFF::GOFFSectionType Type)
@@ -103,7 +108,9 @@ public:
   bool isB_IDRL() const { return Type == GOFF::B_IDRL; }
 
   GOFF::ESDTextStyle getTextStyle() const { return TextStyle; }
-  GOFF::ESDBindingAlgorithm getBindingAlgorithm() const { return BindAlgorithm; }
+  GOFF::ESDBindingAlgorithm getBindingAlgorithm() const {
+    return BindAlgorithm;
+  }
   GOFF::ESDLoadingBehavior getLoadBehavior() const { return LoadBehavior; }
   GOFF::ESDBindingScope getBindingScope() const { return BindingScope; }
   bool getRooted() const { return IsRooted; }
@@ -117,28 +124,27 @@ public:
   // Return the name of the External Definition (ED) used to represent this
   // MCSectionGOFF in the object file.
   std::string getExternalDefinitionName() const {
-    switch (Type)
-    {
-      case GOFF::GOFFSectionType::Code:
-        return "C_CODE64";
-      case GOFF::GOFFSectionType::Static:
-        return "C_WSA64";
-      case GOFF::GOFFSectionType::PPA2Offset:
-        return "C_@@QPPA2";
-      case GOFF::GOFFSectionType::B_IDRL:
-        return "B_IDRL";
-      case GOFF::GOFFSectionType::Other:
-        return "C_WSA64";
+    switch (Type) {
+    case GOFF::GOFFSectionType::Code:
+      return "C_CODE64";
+    case GOFF::GOFFSectionType::Static:
+      return "C_WSA64";
+    case GOFF::GOFFSectionType::PPA2Offset:
+      return "C_@@QPPA2";
+    case GOFF::GOFFSectionType::B_IDRL:
+      return "B_IDRL";
+    case GOFF::GOFFSectionType::Other:
+      return "C_WSA64";
     }
     return "";
   }
 
-  std::optional<const MCSymbolGOFF *> getTextOwner() const {
+  const MCSymbolGOFF * getTextOwner() const {
     if (TextOwnedByED)
-      return std::nullopt;
+      return nullptr;
     else if (TextOwner)
       return TextOwner;
-    return std::nullopt;
+    return nullptr;
   }
 
   std::string getTextOwnerName() const {
@@ -155,9 +161,7 @@ public:
     return getName().str();
   }
 
-  bool isReadOnly() const {
-    return isCode() || isPPA2Offset() || isB_IDRL();
-  }
+  bool isReadOnly() const { return isCode() || isPPA2Offset() || isB_IDRL(); }
 
   GOFF::ESDNameSpaceId getNameSpace() const {
     return isB_IDRL() ? GOFF::ESD_NS_NormalName : GOFF::ESD_NS_Parts;
