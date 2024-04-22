@@ -79,6 +79,10 @@
 #undef HAVE__UNWIND_BACKTRACE
 #endif
 #endif
+#if ENABLE_BACKTRACES && defined(__MVS__)
+#include "llvm/Support/ConvertEBCDIC.h"
+#include <__le_cwi.h>
+#endif
 
 using namespace llvm;
 
@@ -708,6 +712,74 @@ static int unwindBacktrace(void **StackTrace, int MaxEntries) {
 }
 #endif
 
+#if ENABLE_BACKTRACES && defined(__MVS__)
+void zosbacktrace(raw_ostream &OS) {
+#define MAXNAME 256
+  void *dsaptr;                         // Input
+  int32_t dsa_format = -1;              // Input/Output
+  void *caaptr = __builtin_s390_gtca(); // Input
+  int32_t member_id;
+  char compile_unit_name[MAXNAME];
+  int32_t compile_unit_name_length = sizeof(compile_unit_name); // Input/Output
+  void *compile_unit_address;                                   // Output
+  void *call_instruction_address = 0;                           // Input/Output
+  char entry_name[MAXNAME];                                     // Output
+  int32_t entry_name_length = sizeof(entry_name);               // Input/Output
+  void *entry_address;                                          // Output
+  void *callers_instruction_address;                            // Output
+  void *callers_dsaptr;                                         // Output
+  int32_t callers_dsa_format;                                   // Output
+  char statement_id[MAXNAME];                                   // Output
+  int32_t statement_id_length = sizeof(statement_id);           // Input/Output
+  void *cibptr;                                                 // Output
+  int32_t main_program;                                         // Output
+  _FEEDBACK fc;                                                 // Output
+
+  dsaptr = static_cast<char *>(__builtin_frame_address(0)) -
+           2048; // DSA is address of the frame minus the stack pointer bias.
+  int count = 0;
+  OS << " DSA  Adr                EP                 +EP         DSA           "
+        "     Entry\n";
+  while (1) {
+    compile_unit_name_length = sizeof(compile_unit_name);
+    entry_name_length = sizeof(entry_name);
+    statement_id_length = sizeof(statement_id);
+    // See
+    // https://www.ibm.com/docs/en/zos/3.1.0?topic=cwicsa6a-celqtbck-also-known-as-celqtbck-64-bit-traceback-service
+    // for documentation of the parameters.
+    __CELQTBCK(&dsaptr, &dsa_format, &caaptr, &member_id, &compile_unit_name[0],
+               &compile_unit_name_length, &compile_unit_address,
+               &call_instruction_address, &entry_name[0], &entry_name_length,
+               &entry_address, &callers_instruction_address, &callers_dsaptr,
+               &callers_dsa_format, &statement_id[0], &statement_id_length,
+               &cibptr, &main_program, &fc);
+    if (fc.tok_sev) {
+      OS << format("Error! Severity %d Message %d\n", fc.tok_sev, fc.tok_msgno);
+      break;
+    }
+
+    if (count) { // Omit first entry
+      uintptr_t diff = reinterpret_cast<uintptr_t>(call_instruction_address) -
+                       reinterpret_cast<uintptr_t>(entry_address);
+      OS << format(" %3d. 0x%016X", count, call_instruction_address);
+      OS << format(" 0x%016X +0x%08X 0x%016X", entry_address, diff, dsaptr);
+      SmallString<256> Str;
+      ConverterEBCDIC::convertToUTF8(StringRef(entry_name, entry_name_length),
+                                     Str);
+      OS << format(" %s", Str.c_str());
+      OS << "\n";
+    }
+    count++;
+    if (callers_dsaptr) {
+      dsaptr = callers_dsaptr;
+      dsa_format = callers_dsa_format;
+      call_instruction_address = callers_instruction_address;
+    } else
+      break;
+  }
+}
+#endif
+
 // In the case of a program crash or fault, print out a stack trace so that the
 // user has an indication of why and where we died.
 //
@@ -715,6 +787,9 @@ static int unwindBacktrace(void **StackTrace, int MaxEntries) {
 // doesn't demangle symbols.
 void llvm::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
 #if ENABLE_BACKTRACES
+#ifdef __MVS__
+  zosbacktrace(OS);
+#else
   static void *StackTrace[256];
   int depth = 0;
 #if defined(HAVE_BACKTRACE)
@@ -789,6 +864,7 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
   }
 #elif defined(HAVE_BACKTRACE)
   backtrace_symbols_fd(StackTrace, Depth, STDERR_FILENO);
+#endif
 #endif
 #endif
 }
