@@ -68,6 +68,18 @@ void MappingTraits<GOFFYAML::Text>::mapping(IO &IO, GOFFYAML::Text &Txt) {
   IO.mapOptional("Data", Txt.Data);
 }
 
+void MappingTraits<GOFFYAML::ElementLength>::mapping(
+    IO &IO, GOFFYAML::ElementLength &ElemLen) {
+  IO.mapOptional("ESDID", ElemLen.ESDID, 0);
+  IO.mapOptional("Length", ElemLen.Length, 0);
+}
+
+void MappingTraits<GOFFYAML::DeferredLength>::mapping(
+    IO &IO, GOFFYAML::DeferredLength &Len) {
+  IO.mapOptional("Length", Len.Length, 0);
+  IO.mapOptional("Data", Len.Data);
+}
+
 void MappingTraits<GOFFYAML::EndOfModule>::mapping(IO &IO,
                                                    GOFFYAML::EndOfModule &End) {
   IO.mapOptional("Flags", End.Flags, 0);
@@ -89,11 +101,15 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::inputOne(
     GOFFYAML::Text Txt;
     IO.mapRequired("Text", Txt);
     Elem = std::make_unique<GOFFYAML::Text>(std::move(Txt));
+  } else if (Key == "DeferredLength") {
+    GOFFYAML::DeferredLength Len;
+    IO.mapRequired("DeferredLength", Len);
+    Elem = std::make_unique<GOFFYAML::DeferredLength>(std::move(Len));
   } else if (Key == "End") {
     GOFFYAML::EndOfModule End;
     IO.mapRequired("End", End);
     Elem = std::make_unique<GOFFYAML::EndOfModule>(std::move(End));
-  } else if (Key == "RelocationDirectory" || Key == "Symbol" || Key == "Length")
+  } else if (Key == "RelocationDirectory" || Key == "Symbol")
     IO.setError(Twine("not yet implemented ").concat(Key));
   else
     IO.setError(Twine("unknown record type name ").concat(Key));
@@ -109,12 +125,15 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::output(
   case GOFFYAML::RecordBase::Kind::Text:
     IO.mapRequired("Text", *static_cast<GOFFYAML::Text *>(Elem.get()));
     break;
+  case GOFFYAML::RecordBase::Kind::DeferredLength:
+    IO.mapRequired("DeferredLength",
+                   *static_cast<GOFFYAML::DeferredLength *>(Elem.get()));
+    break;
   case GOFFYAML::RecordBase::Kind::EndOfModule:
     IO.mapRequired("End", *static_cast<GOFFYAML::EndOfModule *>(Elem.get()));
     break;
   case GOFFYAML::RecordBase::Kind::RelocationDirectory:
   case GOFFYAML::RecordBase::Kind::Symbol:
-  case GOFFYAML::RecordBase::Kind::DeferredLength:
     llvm_unreachable("not yet implemented");
   }
 }

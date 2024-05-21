@@ -148,6 +148,7 @@ public:
 class GOFFState {
   void writeHeader(const GOFFYAML::ModuleHeader &ModHdr);
   void writeText(const GOFFYAML::Text &Txt);
+  void writeDeferredLength(const GOFFYAML::DeferredLength &Len);
   void writeEnd(const GOFFYAML::EndOfModule &EndMod);
 
   void reportError(const Twine &Msg) {
@@ -203,6 +204,20 @@ void GOFFState::writeText(const GOFFYAML::Text &Txt) {
     LR << zeros(Txt.DataLength);
 }
 
+void GOFFState::writeDeferredLength(const GOFFYAML::DeferredLength &Len) {
+  // See
+  // https://www.ibm.com/docs/en/zos/3.1.0?topic=formats-deferred-element-length-record.
+  GW.newRecord(GOFF::RT_LEN);
+  LogicalRecord LR(GW);
+  LR << zeros(3)              // Reserved.
+     << binaryBe(Len.Length); // Length of the data items.
+  for (const llvm::GOFFYAML::ElementLength &ElemLen : Len.Data) {
+    LR << binaryBe(ElemLen.ESDID)   // ESDID.
+       << zeros(4)                  // Reserved.
+       << binaryBe(ElemLen.Length); // Length of element ESDID.
+  }
+}
+
 void GOFFState::writeEnd(const GOFFYAML::EndOfModule &EndMod) {
   // See https://www.ibm.com/docs/en/zos/3.1.0?topic=formats-end-module-record.
   SmallString<16> EntryName;
@@ -233,12 +248,14 @@ bool GOFFState::writeObject() {
     case GOFFYAML::RecordBase::Kind::Text:
       writeText(*static_cast<const GOFFYAML::Text *>(Rec));
       break;
+    case GOFFYAML::RecordBase::Kind::DeferredLength:
+      writeDeferredLength(*static_cast<const GOFFYAML::DeferredLength *>(Rec));
+      break;
     case GOFFYAML::RecordBase::Kind::EndOfModule:
       writeEnd(*static_cast<const GOFFYAML::EndOfModule *>(Rec));
       break;
     case GOFFYAML::RecordBase::Kind::RelocationDirectory:
     case GOFFYAML::RecordBase::Kind::Symbol:
-    case GOFFYAML::RecordBase::Kind::DeferredLength:
       llvm_unreachable("not yet implemented");
     }
     if (HasError)

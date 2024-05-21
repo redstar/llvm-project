@@ -1,0 +1,21 @@
+# RUN: yaml2obj %s | od -v -An -tx1 | FileCheck --ignore-case %s
+
+## Verify that the GOFF deferred length record is correct, with all fields
+## having a value. No other record is written.
+
+# CHECK:      03 30 00 00 00 00 00 18 00 00 00 01 00 00 00 00
+# CHECK-NEXT: 00 00 00 2a ab cd ef 09 00 00 00 00 12 34 56 78
+# CHECK-NEXT: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# CHECK-NEXT: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# CHECK-NEXT: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+# CHECK-EMPTY:
+
+--- !GOFF
+- DeferredLength:
+    Length: 24
+    Data:
+      - ESDID:  1
+        Length: 42
+      - ESDID:  0xABCDEF09
+        Length: 0x12345678

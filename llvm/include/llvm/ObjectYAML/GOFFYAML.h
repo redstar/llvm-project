@@ -82,6 +82,22 @@ struct Text : public RecordBase {
   }
 };
 
+struct ElementLength {
+  uint32_t ESDID;
+  uint32_t Length;
+};
+
+struct DeferredLength : public RecordBase {
+  DeferredLength() : RecordBase(Kind::DeferredLength) {}
+
+  uint16_t Length;
+  std::vector<ElementLength> Data;
+
+  static bool classof(const RecordBase *S) {
+    return S->getKind() == Kind::DeferredLength;
+  }
+};
+
 struct EndOfModule : public RecordBase {
   EndOfModule() : RecordBase(Kind::EndOfModule) {}
 
@@ -112,8 +128,12 @@ LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_ENDFLAGS)
 LLVM_YAML_IS_SEQUENCE_VECTOR(GOFFYAML::RecordPtr)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::RecordPtr)
 
+LLVM_YAML_IS_SEQUENCE_VECTOR(GOFFYAML::ElementLength)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::ElementLength)
+
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::ModuleHeader)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Text)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::DeferredLength)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::EndOfModule)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Object)
 
