@@ -30,6 +30,58 @@ void ScalarEnumerationTraits<GOFFYAML::GOFF_AMODE>::enumeration(
   IO.enumFallback<Hex8>(Value);
 }
 
+void ScalarBitSetTraits<GOFFYAML::GOFF_RLDFLAGS>::bitset(
+    IO &IO, GOFFYAML::GOFF_RLDFLAGS &Value) {
+#define BCase(X) IO.bitSetCase(Value, #X, GOFF::RLD_##X)
+  BCase(FLAG_SameRId);
+  BCase(FLAG_SamePId);
+  BCase(FLAG_SameOffset);
+  BCase(FLAG_AmodeSensitive);
+#undef BCase
+}
+
+void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDREFERENCETYPE>::enumeration(
+    IO &IO, GOFFYAML::GOFF_RLDREFERENCETYPE &Value) {
+#define ECase(X) IO.enumCase(Value, #X, GOFF::RLD_##X)
+  ECase(RT_RAddress);
+  ECase(RT_ROffset);
+  ECase(RT_RLength);
+  ECase(RT_RRelativeImmediate);
+  ECase(RT_RTypeConstant);
+  ECase(RT_RLongDisplacement);
+#undef ECase
+  IO.enumFallback<Hex8>(Value);
+}
+
+void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDREFERENTTYPE>::enumeration(
+    IO &IO, GOFFYAML::GOFF_RLDREFERENTTYPE &Value) {
+#define ECase(X) IO.enumCase(Value, #X, GOFF::RLD_##X)
+  ECase(RO_Label);
+  ECase(RO_Element);
+  ECase(RO_Class);
+  ECase(RO_Part);
+#undef ECase
+  IO.enumFallback<Hex8>(Value);
+}
+
+void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDACTION>::enumeration(
+    IO &IO, GOFFYAML::GOFF_RLDACTION &Value) {
+#define ECase(X) IO.enumCase(Value, #X, GOFF::RLD_##X)
+  ECase(ACT_Add);
+  ECase(ACT_Subtract);
+#undef ECase
+  IO.enumFallback<Hex8>(Value);
+}
+
+void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDFETCHSTORE>::enumeration(
+    IO &IO, GOFFYAML::GOFF_RLDFETCHSTORE &Value) {
+#define ECase(X) IO.enumCase(Value, #X, GOFF::RLD_##X)
+  ECase(FS_Fetch);
+  ECase(FS_Store);
+#undef ECase
+  IO.enumFallback<Hex8>(Value);
+}
+
 void ScalarEnumerationTraits<GOFFYAML::GOFF_TXTRECORDSTYLE>::enumeration(
     IO &IO, GOFFYAML::GOFF_TXTRECORDSTYLE &Value) {
 #define ECase(X) IO.enumCase(Value, #X, GOFF::TXT_##X)
@@ -56,6 +108,27 @@ void MappingTraits<GOFFYAML::ModuleHeader>::mapping(
   IO.mapOptional("ArchitectureLevel", ModHdr.ArchitectureLevel, 0);
   IO.mapOptional("PropertiesLength", ModHdr.PropertiesLength, 0);
   IO.mapOptional("Properties", ModHdr.Properties);
+}
+
+void MappingTraits<GOFFYAML::Relocation>::mapping(IO &IO,
+                                                  GOFFYAML::Relocation &Rel) {
+  IO.mapRequired("Flags", Rel.Flags);
+  IO.mapOptional("ReferenceType", Rel.ReferenceType, GOFF::RLD_RT_RAddress);
+  IO.mapOptional("ReferentType", Rel.ReferentType, GOFF::RLD_RO_Label);
+  IO.mapOptional("Action", Rel.Action, GOFF::RLD_ACT_Add);
+  IO.mapOptional("FixupTarget", Rel.Action, GOFF::RLD_ACT_Add);
+  IO.mapOptional("TargetFieldByteLength", Rel.TargetFieldByteLength, 0);
+  IO.mapOptional("BitLength", Rel.BitLength, 0);
+  IO.mapOptional("BitOffset", Rel.BitOffset, 0);
+  IO.mapOptional("RPointer", Rel.RPointer);
+  IO.mapOptional("PPointer", Rel.PPointer);
+  IO.mapOptional("Offset", Rel.Offset);
+}
+
+void MappingTraits<GOFFYAML::RelocationDirectory>::mapping(
+    IO &IO, GOFFYAML::RelocationDirectory &Rel) {
+  IO.mapOptional("Length", Rel.Length, 0);
+  IO.mapOptional("RelocationEntries", Rel.Relocs);
 }
 
 void MappingTraits<GOFFYAML::Text>::mapping(IO &IO, GOFFYAML::Text &Txt) {
@@ -97,6 +170,10 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::inputOne(
     GOFFYAML::ModuleHeader ModHdr;
     IO.mapRequired("ModuleHeader", ModHdr);
     Elem = std::make_unique<GOFFYAML::ModuleHeader>(std::move(ModHdr));
+  } else if (Key == "RelocationDirectory") {
+    GOFFYAML::RelocationDirectory Txt;
+    IO.mapRequired("RelocationDirectory", Txt);
+    Elem = std::make_unique<GOFFYAML::RelocationDirectory>(std::move(Txt));
   } else if (Key == "Text") {
     GOFFYAML::Text Txt;
     IO.mapRequired("Text", Txt);
@@ -109,7 +186,7 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::inputOne(
     GOFFYAML::EndOfModule End;
     IO.mapRequired("End", End);
     Elem = std::make_unique<GOFFYAML::EndOfModule>(std::move(End));
-  } else if (Key == "RelocationDirectory" || Key == "Symbol")
+  } else if (Key == "Symbol")
     IO.setError(Twine("not yet implemented ").concat(Key));
   else
     IO.setError(Twine("unknown record type name ").concat(Key));
@@ -122,6 +199,10 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::output(
     IO.mapRequired("ModuleHeader",
                    *static_cast<GOFFYAML::ModuleHeader *>(Elem.get()));
     break;
+  case GOFFYAML::RecordBase::Kind::RelocationDirectory:
+    IO.mapRequired("RelocationDirectory",
+                   *static_cast<GOFFYAML::RelocationDirectory *>(Elem.get()));
+    break;
   case GOFFYAML::RecordBase::Kind::Text:
     IO.mapRequired("Text", *static_cast<GOFFYAML::Text *>(Elem.get()));
     break;
@@ -132,7 +213,6 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::output(
   case GOFFYAML::RecordBase::Kind::EndOfModule:
     IO.mapRequired("End", *static_cast<GOFFYAML::EndOfModule *>(Elem.get()));
     break;
-  case GOFFYAML::RecordBase::Kind::RelocationDirectory:
   case GOFFYAML::RecordBase::Kind::Symbol:
     llvm_unreachable("not yet implemented");
   }

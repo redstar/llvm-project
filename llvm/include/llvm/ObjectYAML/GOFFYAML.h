@@ -17,6 +17,7 @@
 #include "llvm/BinaryFormat/GOFF.h"
 #include "llvm/ObjectYAML/YAML.h"
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace llvm {
@@ -26,6 +27,11 @@ namespace llvm {
 namespace GOFFYAML {
 
 LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_AMODE)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_RLDFLAGS)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_RLDREFERENCETYPE)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_RLDREFERENTTYPE)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_RLDACTION)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_RLDFETCHSTORE)
 LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_TXTRECORDSTYLE)
 LLVM_YAML_STRONG_TYPEDEF(uint8_t, GOFF_ENDFLAGS)
 
@@ -63,6 +69,31 @@ struct ModuleHeader : public RecordBase {
 
   static bool classof(const RecordBase *S) {
     return S->getKind() == Kind::ModuleHeader;
+  }
+};
+
+struct Relocation {
+  GOFF_RLDFLAGS Flags;
+  GOFF_RLDREFERENCETYPE ReferenceType;
+  GOFF_RLDREFERENTTYPE ReferentType;
+  GOFF_RLDACTION Action;
+  GOFF_RLDFETCHSTORE FixupTarget;
+  uint8_t TargetFieldByteLength;
+  uint8_t BitLength;
+  uint8_t BitOffset;
+  std::optional<uint32_t> RPointer;
+  std::optional<uint32_t> PPointer;
+  std::optional<uint64_t> Offset;
+};
+
+struct RelocationDirectory : public RecordBase {
+  RelocationDirectory() : RecordBase(Kind::RelocationDirectory) {}
+
+  uint16_t Length;
+  std::vector<Relocation> Relocs;
+
+  static bool classof(const RecordBase *Rec) {
+    return Rec->getKind() == Kind::RelocationDirectory;
   }
 };
 
@@ -122,6 +153,11 @@ struct Object {
 } // end namespace llvm
 
 LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_AMODE)
+LLVM_YAML_DECLARE_BITSET_TRAITS(GOFFYAML::GOFF_RLDFLAGS)
+LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_RLDREFERENCETYPE)
+LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_RLDREFERENTTYPE)
+LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_RLDACTION)
+LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_RLDFETCHSTORE)
 LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_TXTRECORDSTYLE)
 LLVM_YAML_DECLARE_ENUM_TRAITS(GOFFYAML::GOFF_ENDFLAGS)
 
@@ -131,7 +167,11 @@ LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::RecordPtr)
 LLVM_YAML_IS_SEQUENCE_VECTOR(GOFFYAML::ElementLength)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::ElementLength)
 
+LLVM_YAML_IS_SEQUENCE_VECTOR(GOFFYAML::Relocation)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Relocation)
+
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::ModuleHeader)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::RelocationDirectory)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Text)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::DeferredLength)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::EndOfModule)

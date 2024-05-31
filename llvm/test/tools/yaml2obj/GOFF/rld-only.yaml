@@ -1,0 +1,24 @@
+# RUN: yaml2obj %s | od -v -An -tx1 | FileCheck --ignore-case %s
+
+# CHECK:      03 20 00 00 00 0c 00 00 00 00 39 00 00 00 02 00
+# CHECK-NEXT: 08 00 00 00 44 00 00 00 00 00 03 00 00 00 05 00
+# CHECK-NEXT: 00 00 00 00 00 00 07 00 00 00 00 00 00 00 00 00
+# CHECK-NEXT: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+# CHECK-NEXT: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+# CHECK-EMPTY:
+
+--- !GOFF
+- RelocationDirectory:
+    Length: 12
+    RelocationEntries:
+      - Flags: []
+        ReferenceType: RT_RLongDisplacement
+        ReferentType: RO_Part
+        Action: ACT_Subtract
+        TargetFieldByteLength: 8
+        BitLength: 4
+        BitOffset: 4
+        RPointer: 3
+        PPointer: 5
+        Offset: 7

@@ -147,6 +147,7 @@ public:
 
 class GOFFState {
   void writeHeader(const GOFFYAML::ModuleHeader &ModHdr);
+  void writeRelocationDirectory(const GOFFYAML::RelocationDirectory &RelDir);
   void writeText(const GOFFYAML::Text &Txt);
   void writeDeferredLength(const GOFFYAML::DeferredLength &Len);
   void writeEnd(const GOFFYAML::EndOfModule &EndMod);
@@ -184,6 +185,33 @@ void GOFFState::writeHeader(const GOFFYAML::ModuleHeader &ModHdr) {
      << zeros(6);                          // Reserved.
   if (ModHdr.Properties)
     LR << *ModHdr.Properties; // Module properties.
+}
+
+void GOFFState::writeRelocationDirectory(
+    const GOFFYAML::RelocationDirectory &RelDir) {
+  // See
+  // https://www.ibm.com/docs/en/zos/3.1.0?topic=formats-relocation-directory-record.
+  GW.newRecord(GOFF::RT_RLD);
+  LogicalRecord LR(GW);
+  LR << zeros(1)                 // Reserved.
+     << binaryBe(RelDir.Length); // Length of the data items.
+  for (auto &Rel : RelDir.Relocs) {
+    // TODO Conditional Sequential Resolution Flag.
+    LR << binaryBe(uint8_t(Rel.Flags));
+    LR << binaryBe(uint8_t(Rel.ReferentType) << 4 | uint8_t(Rel.ReferenceType));
+    LR << binaryBe(uint8_t(Rel.Action) << 1 | uint8_t(0 /* Fetch/Store*/));
+    LR << zeros(1); // Reserved.
+    LR << binaryBe(Rel.TargetFieldByteLength);
+    LR << binaryBe(uint8_t(Rel.BitLength) << 4 | uint8_t(Rel.BitOffset));
+    LR << zeros(2); // Reserved.
+    if (Rel.RPointer.has_value())
+      LR << binaryBe(*Rel.RPointer);
+    if (Rel.PPointer.has_value())
+      LR << binaryBe(*Rel.PPointer);
+    if (Rel.Offset.has_value())
+      LR << binaryBe(*Rel.Offset);
+    LR << zeros(8); // Reserved.
+  }
 }
 
 void GOFFState::writeText(const GOFFYAML::Text &Txt) {
@@ -245,6 +273,10 @@ bool GOFFState::writeObject() {
     case GOFFYAML::RecordBase::Kind::ModuleHeader:
       writeHeader(*static_cast<const GOFFYAML::ModuleHeader *>(Rec));
       break;
+    case GOFFYAML::RecordBase::Kind::RelocationDirectory:
+      writeRelocationDirectory(
+          *static_cast<const GOFFYAML::RelocationDirectory *>(Rec));
+      break;
     case GOFFYAML::RecordBase::Kind::Text:
       writeText(*static_cast<const GOFFYAML::Text *>(Rec));
       break;
@@ -254,7 +286,6 @@ bool GOFFState::writeObject() {
     case GOFFYAML::RecordBase::Kind::EndOfModule:
       writeEnd(*static_cast<const GOFFYAML::EndOfModule *>(Rec));
       break;
-    case GOFFYAML::RecordBase::Kind::RelocationDirectory:
     case GOFFYAML::RecordBase::Kind::Symbol:
       llvm_unreachable("not yet implemented");
     }
