@@ -97,6 +97,41 @@ struct RelocationDirectory : public RecordBase {
   }
 };
 
+struct Symbol : public RecordBase {
+  Symbol() : RecordBase(Kind::Symbol) {}
+
+  StringRef Name;
+  //GOFF_ESDSYMBOLTYPE Type;
+  uint32_t ID;
+  uint32_t OwnerID;
+  uint32_t Address;
+  uint32_t Length;
+  uint32_t ExtAttrID;
+  uint32_t ExtAttrOffset;
+  //GOFF_ESDNAMESPACEID NameSpace;
+  //GOFF_ESDFlags Flags;
+  uint8_t FillByteValue;
+  uint32_t PSectID;
+  uint32_t Priority;
+  std::optional<llvm::yaml::Hex64> Signature;
+  GOFF_AMODE Amode;
+  //GOFF_ESDRMODE Rmode;
+  //GOFF_ESDTEXTSTYLE TextStyle;
+  //GOFF_ESDBINDINGALGORITHM BindingAlgorithm;
+  //GOFF_ESDTASKINGBEHAVIOR TaskingBehavior;
+  //GOFF_ESDEXECUTABLE Executable;
+  //GOFF_ESDLINKAGETYPE LinkageType;
+  //GOFF_ESDBINDINGSTRENGTH BindingStrength;
+  //GOFF_ESDLOADINGBEHAVIOR LoadingBehavior;
+  //GOFF_ESDBINDINGSCOPE BindingScope;
+  //GOFF_ESDALIGNMENT Alignment;
+  //GOFF_BAFLAGS BAFlags;
+
+  static bool classof(const RecordBase *Rec) {
+    return Rec->getKind() == Kind::Symbol;
+  }
+};
+
 struct Text : public RecordBase {
   Text() : RecordBase(Kind::Text) {}
 
@@ -172,6 +207,7 @@ LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Relocation)
 
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::ModuleHeader)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::RelocationDirectory)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Symbol)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::Text)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::DeferredLength)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(GOFFYAML::EndOfModule)

@@ -148,6 +148,7 @@ public:
 class GOFFState {
   void writeHeader(const GOFFYAML::ModuleHeader &ModHdr);
   void writeRelocationDirectory(const GOFFYAML::RelocationDirectory &RelDir);
+  void writeSymbol(const GOFFYAML::Symbol &Sym);
   void writeText(const GOFFYAML::Text &Txt);
   void writeDeferredLength(const GOFFYAML::DeferredLength &Len);
   void writeEnd(const GOFFYAML::EndOfModule &EndMod);
@@ -214,6 +215,57 @@ void GOFFState::writeRelocationDirectory(
   }
 }
 
+void GOFFState::writeSymbol(const GOFFYAML::Symbol &Sym) {
+  // See
+  // https://www.ibm.com/docs/en/zos/3.1.0?topic=formats-external-symbol-definition-record
+  SmallString<80> SymName;
+  if (std::error_code EC = ConverterEBCDIC::convertToEBCDIC(Sym.Name, SymName))
+    reportError("conversion error on " + Sym.Name);
+  size_t SymLength = SymName.size();
+  if (SymLength > GOFF::MaxDataLength)
+    reportError("symbol name is too long: " + Twine(SymLength));
+
+  GW.newRecord(GOFF::RT_ESD);
+  LogicalRecord LR(GW);
+  LR //<< binaryBe(Sym.Type)          // Symbol type
+     << binaryBe(Sym.ID)            // ESDID
+     << binaryBe(Sym.OwnerID)       // Owner ESDID
+     << binaryBe(uint32_t(0))       // Reserved
+     << binaryBe(Sym.Address)       // Offset/Address
+     << binaryBe(uint32_t(0))       // Reserved
+     << binaryBe(Sym.Length)        // Length
+     << binaryBe(Sym.ExtAttrID)     // Extended attributes
+     << binaryBe(Sym.ExtAttrOffset) // Extended attributes data offset
+     << binaryBe(uint32_t(0))       // Reserved
+     //<< binaryBe(Sym.NameSpace)     // Namespace ID
+     //<< binaryBe(Sym.Flags)         // Flags
+     << binaryBe(Sym.FillByteValue) // Fill byte value
+     << binaryBe(uint8_t(0))        // Reserved
+     << binaryBe(Sym.PSectID)       // PSECT ID
+     << binaryBe(Sym.Priority);     // Priority
+#if 0
+// TODO Fix!
+  if (Sym.Signature)
+    LR << *Sym.Signature; // Signature
+  else
+    LR << zeros(8);
+#define BIT(E, N) (Sym.BAFlags & GOFF::E ? 1 << (7 - N) : 0)
+  LR << binaryBe(Sym.Amode) // Behavioral attributes - Amode
+     << binaryBe(Sym.Rmode) // Behavioral attributes - Rmode
+     << binaryBe(uint8_t(Sym.TextStyle << 4 | Sym.BindingAlgorithm))
+     << binaryBe(uint8_t(Sym.TaskingBehavior << 5 | BIT(ESD_BA_Movable, 3) |
+                         BIT(ESD_BA_ReadOnly, 4) | Sym.Executable))
+     << binaryBe(uint8_t(BIT(ESD_BA_NoPrime, 1) | Sym.BindingStrength))
+     << binaryBe(uint8_t(Sym.LoadingBehavior << 6 | BIT(ESD_BA_COMMON, 2) |
+                         BIT(ESD_BA_Indirect, 3) | Sym.BindingScope))
+     << binaryBe(uint8_t(Sym.LinkageType << 5 | Sym.Alignment))
+     << zeros(3) // Behavioral attributes - Reserved
+     << binaryBe(static_cast<uint16_t>(SymLength)) // Name length
+     << SymName.str();
+#undef BIT
+#endif
+}
+
 void GOFFState::writeText(const GOFFYAML::Text &Txt) {
   // See https://www.ibm.com/docs/en/zos/3.1.0?topic=grf-text-record.
   GW.newRecord(GOFF::RT_TXT);
@@ -277,6 +329,9 @@ bool GOFFState::writeObject() {
       writeRelocationDirectory(
           *static_cast<const GOFFYAML::RelocationDirectory *>(Rec));
       break;
+    case GOFFYAML::RecordBase::Kind::Symbol:
+      writeSymbol(*static_cast<const GOFFYAML::Symbol *>(Rec));
+      break;
     case GOFFYAML::RecordBase::Kind::Text:
       writeText(*static_cast<const GOFFYAML::Text *>(Rec));
       break;
@@ -286,8 +341,6 @@ bool GOFFState::writeObject() {
     case GOFFYAML::RecordBase::Kind::EndOfModule:
       writeEnd(*static_cast<const GOFFYAML::EndOfModule *>(Rec));
       break;
-    case GOFFYAML::RecordBase::Kind::Symbol:
-      llvm_unreachable("not yet implemented");
     }
     if (HasError)
       return false;

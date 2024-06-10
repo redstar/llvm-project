@@ -131,6 +131,37 @@ void MappingTraits<GOFFYAML::RelocationDirectory>::mapping(
   IO.mapOptional("RelocationEntries", Rel.Relocs);
 }
 
+void MappingTraits<GOFFYAML::Symbol>::mapping(IO &IO, GOFFYAML::Symbol &Sym) {
+  IO.mapRequired("Name", Sym.Name);
+  //IO.mapRequired("Type", Sym.Type);
+  IO.mapRequired("ID", Sym.ID);
+  IO.mapOptional("OwnerID", Sym.OwnerID, 0);
+  IO.mapOptional("Address", Sym.Address, 0);
+  IO.mapOptional("Length", Sym.Length, 0);
+  IO.mapOptional("ExtAttrID", Sym.ExtAttrID, 0);
+  IO.mapOptional("ExtAttrOffset", Sym.ExtAttrOffset, 0);
+  //IO.mapRequired("NameSpace", Sym.NameSpace);
+  //IO.mapOptional("Flags", Sym.Flags, GOFFYAML::GOFF_ESDFlags(0));
+  IO.mapOptional("FillByteValue", Sym.FillByteValue, 0);
+  IO.mapOptional("PSectID", Sym.PSectID, 0);
+  IO.mapOptional("Priority", Sym.Priority, 0);
+  IO.mapOptional("Signature", Sym.Signature);
+  IO.mapOptional("Amode", Sym.Amode, GOFF::ESD_AMODE_None);
+  //IO.mapOptional("Rmode", Sym.Rmode, GOFF::ESD_RMODE_None);
+  //IO.mapOptional("TextStyle", Sym.TextStyle, GOFF::ESD_TS_ByteOriented);
+  //IO.mapOptional("BindingAlgorithm", Sym.BindingAlgorithm,
+  //               GOFF::ESD_BA_Concatenate);
+  //IO.mapOptional("TaskingBehavior", Sym.TaskingBehavior,
+  //               GOFF::ESD_TA_Unspecified);
+  //IO.mapOptional("Executable", Sym.Executable, GOFF::ESD_EXE_Unspecified);
+  //IO.mapOptional("LinkageType", Sym.LinkageType, GOFF::ESD_LT_OS);
+  //IO.mapOptional("BindingStrength", Sym.BindingStrength, GOFF::ESD_BST_Strong);
+  //IO.mapOptional("LoadingBehavior", Sym.LoadingBehavior, GOFF::ESD_LB_Initial);
+  //IO.mapOptional("BindingScope", Sym.BindingScope, GOFF::ESD_BSC_Unspecified);
+  //IO.mapOptional("Alignment", Sym.Alignment, GOFF::ESD_ALIGN_Byte);
+  //IO.mapOptional("BAFlags", Sym.BAFlags, 0);
+}
+
 void MappingTraits<GOFFYAML::Text>::mapping(IO &IO, GOFFYAML::Text &Txt) {
   IO.mapOptional("TextStyle", Txt.Style, GOFF::TXT_TS_Byte);
   IO.mapOptional("ESDID", Txt.ESDID, 0);
@@ -174,6 +205,10 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::inputOne(
     GOFFYAML::RelocationDirectory Txt;
     IO.mapRequired("RelocationDirectory", Txt);
     Elem = std::make_unique<GOFFYAML::RelocationDirectory>(std::move(Txt));
+  } else if (Key == "Symbol") {
+    GOFFYAML::Symbol Sym;
+    IO.mapRequired("Symbol", Sym);
+    Elem = std::make_unique<GOFFYAML::Symbol>(std::move(Sym));
   } else if (Key == "Text") {
     GOFFYAML::Text Txt;
     IO.mapRequired("Text", Txt);
@@ -186,9 +221,7 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::inputOne(
     GOFFYAML::EndOfModule End;
     IO.mapRequired("End", End);
     Elem = std::make_unique<GOFFYAML::EndOfModule>(std::move(End));
-  } else if (Key == "Symbol")
-    IO.setError(Twine("not yet implemented ").concat(Key));
-  else
+  } else
     IO.setError(Twine("unknown record type name ").concat(Key));
 }
 
@@ -203,6 +236,9 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::output(
     IO.mapRequired("RelocationDirectory",
                    *static_cast<GOFFYAML::RelocationDirectory *>(Elem.get()));
     break;
+  case GOFFYAML::RecordBase::Kind::Symbol:
+    IO.mapRequired("Symbol", *static_cast<GOFFYAML::Symbol *>(Elem.get()));
+    break;
   case GOFFYAML::RecordBase::Kind::Text:
     IO.mapRequired("Text", *static_cast<GOFFYAML::Text *>(Elem.get()));
     break;
@@ -213,8 +249,6 @@ void CustomMappingTraits<GOFFYAML::RecordPtr>::output(
   case GOFFYAML::RecordBase::Kind::EndOfModule:
     IO.mapRequired("End", *static_cast<GOFFYAML::EndOfModule *>(Elem.get()));
     break;
-  case GOFFYAML::RecordBase::Kind::Symbol:
-    llvm_unreachable("not yet implemented");
   }
 }
 
