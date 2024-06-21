@@ -40,27 +40,20 @@ void ScalarBitSetTraits<GOFFYAML::GOFF_RLDFLAGS>::bitset(
 #undef BCase
 }
 
-void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDREFERENCETYPE>::enumeration(
-    IO &IO, GOFFYAML::GOFF_RLDREFERENCETYPE &Value) {
-#define ECase(X) IO.enumCase(Value, #X, GOFF::RLD_##X)
-  ECase(RT_RAddress);
-  ECase(RT_ROffset);
-  ECase(RT_RLength);
-  ECase(RT_RRelativeImmediate);
-  ECase(RT_RTypeConstant);
-  ECase(RT_RLongDisplacement);
-#undef ECase
-  IO.enumFallback<Hex8>(Value);
-}
-
-void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDREFERENTTYPE>::enumeration(
-    IO &IO, GOFFYAML::GOFF_RLDREFERENTTYPE &Value) {
-#define ECase(X) IO.enumCase(Value, #X, GOFF::RLD_##X)
-  ECase(RO_Label);
-  ECase(RO_Element);
-  ECase(RO_Class);
-  ECase(RO_Part);
-#undef ECase
+void ScalarEnumerationTraits<GOFFYAML::GOFF_RLDRPOINTERINDICATOR>::bitset(
+    IO &IO, GOFFYAML::GOFF_RLDRPOINTERINDICATOR &Value) {
+#define BCase(X) IO.bitSetCase(Value, #X, GOFFYAML::X)
+  BCase(RT_RAddress);
+  BCase(RT_ROffset);
+  BCase(RT_RLength);
+  BCase(RT_RRelativeImmediate);
+  BCase(RT_RTypeConstant);
+  BCase(RT_RLongDisplacement);
+  BCase(RO_Label);
+  BCase(RO_Element);
+  BCase(RO_Class);
+  BCase(RO_Part);
+#undef BCase
   IO.enumFallback<Hex8>(Value);
 }
 
