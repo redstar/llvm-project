@@ -56,7 +56,8 @@ def cabs : TargetLibCall< "cabs", ? /* Checked manually. */>;
 // CHECK-NEXT:   17, // printf
 // CHECK-NEXT:   24, // cabs
 // CHECK-NEXT: };
-// CHECK-NEXT: const uint8_t TargetLibraryInfoImpl::StandardNamesSizeTable[6] = {  0,
+// CHECK-NEXT: const uint8_t TargetLibraryInfoImpl::StandardNamesSizeTable[6] = {
+// CHECK-NEXT:   0,
 // CHECK-NEXT:   4,
 // CHECK-NEXT:   4,
 // CHECK-NEXT:   5,

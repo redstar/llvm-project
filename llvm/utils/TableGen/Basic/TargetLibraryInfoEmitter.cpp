@@ -98,7 +98,7 @@ void TargetLibraryInfoEmitter::emitTargetLibraryInfoStringTable(
   }
   OS << "};\n";
   OS << "const uint8_t TargetLibraryInfoImpl::StandardNamesSizeTable[" << NumEl
-     << "] = {";
+     << "] = {\n";
   OS << "  0,\n";
   for (const auto *R : AllTargetLibcalls)
     OS.indent(2) << R->getValueAsString("String").size() << ",\n";
